@@ -1,2 +1,5 @@
 comparacao/
 ChatGPT Image*.png
+
+.vercel
+.env*
