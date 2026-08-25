@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rato Run</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="game-top" aria-label="Painel do jogo">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>Corrida do Rato</h1>
+          </div>
+        </div>
+
+        <div class="scoreboard" aria-live="polite">
+          <div>
+            <span>Pontos</span>
+            <strong id="score">00000</strong>
+          </div>
+          <div>
+            <span>Recorde</span>
+            <strong id="bestScore">00000</strong>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="startButton" class="icon-button" type="button" aria-label="Comecar" title="Comecar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
+          <button id="pauseButton" class="icon-button" type="button" aria-label="Pausar" title="Pausar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 5h4v14H7zM13 5h4v14h-4z" />
+            </svg>
+          </button>
+          <button id="restartButton" class="icon-button" type="button" aria-label="Reiniciar" title="Reiniciar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6.1 7.4A8 8 0 1 1 4 13h2.1a6 6 0 1 0 1.5-4H11v2H4V4h2z" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <section class="stage-wrap" aria-label="Area de jogo">
+        <canvas id="gameCanvas" width="960" height="360"></canvas>
+        <div class="mobile-controls" aria-label="Controles mobile">
+          <button id="duckTouchButton" class="touch-control touch-control--duck" type="button" aria-label="Abaixar">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 19 5 12h4V5h6v7h4z" />
+            </svg>
+          </button>
+          <button id="jumpTouchButton" class="touch-control touch-control--jump" type="button" aria-label="Pular">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5 5 12h4v7h6v-7h4z" />
+            </svg>
+          </button>
+        </div>
+        <div id="messagePanel" class="message-panel">
+          <strong>Dino Run</strong>
+          <button id="overlayButton" type="button">Comecar</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="js/script.js"></script>
+  </body>
+</html>
