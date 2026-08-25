@@ -19,8 +19,10 @@ const BIRD_ENTRY_X = WORLD_WIDTH + 64;
 const BIRD_MIN_SCORE = 160;
 const BIRD_OBSTACLE_CLEARANCE = 360;
 const BIRD_TO_BIRD_CLEARANCE = 560;
-const NIGHT_START_SCORE = 200;
-const NIGHT_END_SCORE = 500;
+const NIGHT_START_SCORE = 2000;
+const NIGHT_END_SCORE = 2500;
+const DAY_RETURN_DELAY_SCORE = 180;
+const DAY_RETURN_SPAN_SCORE = 520;
 const RUNNER_START_X = 102;
 const RUNNER_BOSS_X = 190;
 const CAT_BOSS_HIDDEN_X = -360;
@@ -294,6 +296,7 @@ const game = {
   bossActive: false,
   bossStartScore: 0,
   bossEscaped: false,
+  bossEscapeScore: 0,
   escapePipeSpawned: false,
   catLeftBehindTimer: 0,
   cloudTimer: 0,
@@ -354,8 +357,21 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const lerp = (start, end, amount) => start + (end - start) * amount;
 const easeInOutCubic = (value) =>
   value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
-const getNightAmount = () =>
-  easeInOutCubic(clamp((game.score - NIGHT_START_SCORE) / (NIGHT_END_SCORE - NIGHT_START_SCORE), 0, 1));
+const getNightAmount = () => {
+  const nightAmount = easeInOutCubic(
+    clamp((game.score - NIGHT_START_SCORE) / (NIGHT_END_SCORE - NIGHT_START_SCORE), 0, 1)
+  );
+
+  if (!game.bossEscaped || game.bossEscapeScore <= 0) {
+    return nightAmount;
+  }
+
+  const dayReturnAmount = easeInOutCubic(
+    clamp((game.score - game.bossEscapeScore - DAY_RETURN_DELAY_SCORE) / DAY_RETURN_SPAN_SCORE, 0, 1)
+  );
+
+  return nightAmount * (1 - dayReturnAmount);
+};
 const getBossAmount = () =>
   game.bossActive ? easeInOutCubic(clamp((game.score - game.bossStartScore) / BOSS_REVEAL_SCORE_SPAN, 0, 1)) : 0;
 const isBossPhase = () => game.bossActive;
@@ -388,6 +404,7 @@ function resetGame() {
   game.bossActive = false;
   game.bossStartScore = 0;
   game.bossEscaped = false;
+  game.bossEscapeScore = 0;
   game.escapePipeSpawned = false;
   game.catLeftBehindTimer = 0;
   game.cloudTimer = 0;
@@ -842,6 +859,7 @@ function getEscapePipeEntranceBox(pipe) {
 function escapeBossThroughPipe() {
   game.bossEscaped = true;
   game.bossActive = false;
+  game.bossEscapeScore = game.score;
   game.platformMode = false;
   game.platformEntryActive = false;
   game.escapePipeSpawned = false;
