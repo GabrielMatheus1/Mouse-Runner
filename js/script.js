@@ -30,6 +30,7 @@ const CAT_BOSS_VISIBLE_X = -152;
 const BOSS_REVEAL_SCORE_SPAN = 220;
 const BOSS_PIPE_SCORE_DELAY = 520;
 const BOSS_CAT_LEFT_BEHIND_TIME = 90;
+const BOSS_CAT_PIPE_STOP_TIME = 132;
 const BOSS_ATTACK_READY_AMOUNT = 0.72;
 const BOSS_ATTACK_INITIAL_COOLDOWN = 118;
 const BOSS_ATTACK_MIN_COOLDOWN = 175;
@@ -57,10 +58,11 @@ const PLATFORM_ATTACK_WIDTH = 1040;
 const PLATFORM_ATTACK_MIN_WIDTH = 820;
 const PLATFORM_ATTACK_EVERY = 3;
 const PLATFORM_FALL_LIMIT_Y = WORLD_HEIGHT + 34;
-const PIPE_WIDTH = 190;
-const PIPE_HEIGHT = 214;
-const PIPE_PLATFORM_WIDTH = 760;
-const PIPE_PLATFORM_GAP = 170;
+const PIPE_WIDTH = 320;
+const PIPE_HEIGHT = 224;
+const PIPE_PLATFORM_WIDTH = 940;
+const PIPE_PLATFORM_GAP = 190;
+const PIPE_PLATFORM_RIGHT_PADDING = 72;
 const BOSS_JUMP_READY_AMOUNT = 0.12;
 const BOSS_JUMP_DURATION = 78;
 const BOSS_JUMP_HEIGHT = 88;
@@ -556,6 +558,11 @@ function updateBossAttack(step, bossPhase) {
 }
 
 function startBossWarning() {
+  if (bossJump.timer > 0) {
+    bossAttack.cooldown = BOSS_ATTACK_DODGE_RETRY;
+    return;
+  }
+
   const targetPlatform = getRunnerAttackPlatform();
 
   if (!canBossAttackPlatform(targetPlatform)) {
@@ -811,11 +818,12 @@ function spawnEscapePipe() {
   platforms.push(pipePlatform);
   escapePipe = {
     platform: pipePlatform,
-    offsetX: pipePlatform.w - PIPE_WIDTH - 88,
-    x: pipePlatform.x + pipePlatform.w - PIPE_WIDTH - 88,
+    offsetX: pipePlatform.w - PIPE_WIDTH - PIPE_PLATFORM_RIGHT_PADDING,
+    x: pipePlatform.x + pipePlatform.w - PIPE_WIDTH - PIPE_PLATFORM_RIGHT_PADDING,
     surfaceY: pipePlatform.surfaceY,
     w: PIPE_WIDTH,
     h: PIPE_HEIGHT,
+    lockedAfterEscape: false,
   };
 
   game.escapePipeSpawned = true;
@@ -849,26 +857,34 @@ function updateEscapePipe(bossPhase) {
 
 function getEscapePipeEntranceBox(pipe) {
   return {
-    x: pipe.x + pipe.w * 0.08,
-    y: pipe.surfaceY - pipe.h * 0.42,
-    w: pipe.w * 0.42,
-    h: pipe.h * 0.36,
+    x: pipe.x + pipe.w * 0.04,
+    y: pipe.surfaceY - pipe.h * 0.44,
+    w: pipe.w * 0.34,
+    h: pipe.h * 0.38,
   };
 }
 
 function escapeBossThroughPipe() {
+  const escapedPipe = escapePipe
+    ? {
+        ...escapePipe,
+        platform: null,
+        lockedAfterEscape: true,
+      }
+    : null;
+
   game.bossEscaped = true;
   game.bossActive = false;
   game.bossEscapeScore = game.score;
   game.platformMode = false;
   game.platformEntryActive = false;
   game.escapePipeSpawned = false;
-  game.catLeftBehindTimer = BOSS_CAT_LEFT_BEHIND_TIME;
+  game.catLeftBehindTimer = BOSS_CAT_PIPE_STOP_TIME;
   game.spawnTimer = 260;
   game.birdTimer = 560;
 
   platforms = [];
-  escapePipe = null;
+  escapePipe = escapedPipe;
   resetBossAttack();
   resetBossJump();
 
@@ -928,7 +944,7 @@ function updateBossJump(step, bossPhase) {
     return;
   }
 
-  if (bossAttack.state === "strike") {
+  if (isBossAttackVisible()) {
     bossJump.cooldown = Math.max(bossJump.cooldown, BOSS_JUMP_MIN_COOLDOWN * 0.45);
     return;
   }
@@ -1182,6 +1198,9 @@ function updateAmbient(delta) {
   if (game.catLeftBehindTimer > 0) {
     game.catLeftBehindTimer = Math.max(0, game.catLeftBehindTimer - step);
   }
+  if (escapePipe?.lockedAfterEscape && game.catLeftBehindTimer <= 0) {
+    escapePipe = null;
+  }
 }
 
 function getRunnerHitBox() {
@@ -1396,6 +1415,11 @@ function drawNightShade() {
 }
 
 function drawBossCat() {
+  if (escapePipe?.lockedAfterEscape && game.catLeftBehindTimer > 0) {
+    drawCatStoppedAtPipe();
+    return;
+  }
+
   const leaving = game.catLeftBehindTimer > 0;
   const reveal = leaving ? game.catLeftBehindTimer / BOSS_CAT_LEFT_BEHIND_TIME : getBossAmount();
   if (reveal <= 0.01) return;
@@ -1412,6 +1436,56 @@ function drawBossCat() {
   }
 
   drawFallbackBossCat(reveal, leaveOffsetX);
+}
+
+function drawCatStoppedAtPipe() {
+  if (!escapePipe) return;
+
+  const amount = clamp(game.catLeftBehindTimer / BOSS_CAT_PIPE_STOP_TIME, 0, 1);
+  const alpha = clamp(amount * 1.6, 0, 1);
+  const mouthX = escapePipe.x + escapePipe.w * 0.13;
+
+  if (catBossSprite.loaded) {
+    const frame = catBossSprite.frames[0];
+    const drawHeight = catBossSprite.drawHeight;
+    const drawWidth = drawHeight * (frame.w / frame.h);
+    const x = mouthX - drawWidth * 0.86;
+    const y = escapePipe.surfaceY - drawHeight + 5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "rgba(2, 6, 16, 0.28)";
+    roundedRect(x + drawWidth * 0.08, escapePipe.surfaceY - 9, drawWidth * 0.74, 8, 4);
+    ctx.fill();
+    ctx.drawImage(catBossSprite.image, frame.x, frame.y, frame.w, frame.h, x, y, drawWidth, drawHeight);
+    ctx.restore();
+    return;
+  }
+
+  drawFallbackCatStoppedAtPipe(mouthX, alpha);
+}
+
+function drawFallbackCatStoppedAtPipe(mouthX, alpha) {
+  const x = mouthX - 228;
+  const y = GROUND_Y - 128;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.fillStyle = "rgba(2, 6, 16, 0.28)";
+  roundedRect(34, 119, 168, 8, 4);
+  ctx.fill();
+  ctx.fillStyle = "#5d6474";
+  roundedRect(74, 28, 142, 72, 28);
+  ctx.fill();
+  ctx.fillStyle = "#4c5261";
+  roundedRect(184, 48, 58, 48, 22);
+  ctx.fill();
+  ctx.fillStyle = "#f5c8c0";
+  ctx.beginPath();
+  ctx.arc(222, 58, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawCatBossSprite(reveal, offsetX = 0) {
