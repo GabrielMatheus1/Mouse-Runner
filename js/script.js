@@ -2295,7 +2295,39 @@ function loop(time) {
   requestAnimationFrame(loop);
 }
 
+function isMobilePlayMode() {
+  return window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false;
+}
+
+function lockLandscapeOrientation() {
+  try {
+    const request = screen.orientation?.lock?.("landscape");
+    request?.catch?.(() => {});
+  } catch {
+    // Some mobile browsers only allow orientation lock in installed/fullscreen contexts.
+  }
+}
+
+function requestLandscapePlayMode() {
+  if (!isMobilePlayMode()) return;
+
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    document.documentElement
+      .requestFullscreen({ navigationUI: "hide" })
+      .then(lockLandscapeOrientation)
+      .catch(lockLandscapeOrientation);
+    return;
+  }
+
+  lockLandscapeOrientation();
+}
+
 function handlePrimaryAction(event) {
+  if (event.pointerType && event.pointerType !== "mouse") {
+    event.preventDefault();
+    return;
+  }
+
   const tag = event.target.tagName.toLowerCase();
   if (tag === "button") return;
   activeJumpPointerId = event.pointerId;
@@ -2311,6 +2343,7 @@ function pressJumpControl(event) {
   event.stopPropagation();
   activeJumpPointerId = event.pointerId;
   event.currentTarget.setPointerCapture?.(event.pointerId);
+  requestLandscapePlayMode();
   startGame();
 }
 
@@ -2325,6 +2358,7 @@ function pressDuckControl(event) {
   event.stopPropagation();
   activeDuckPointerId = event.pointerId;
   event.currentTarget.setPointerCapture?.(event.pointerId);
+  requestLandscapePlayMode();
   setDuck(true);
 }
 
@@ -2332,6 +2366,17 @@ function releaseDuckPointer(event) {
   if (activeDuckPointerId !== null && event.pointerId !== activeDuckPointerId) return;
   activeDuckPointerId = null;
   setDuck(false);
+}
+
+function startFromButton() {
+  requestLandscapePlayMode();
+  startGame();
+}
+
+function restartFromButton() {
+  requestLandscapePlayMode();
+  resetGame();
+  startGame();
 }
 
 window.addEventListener("resize", resizeCanvas);
@@ -2378,13 +2423,10 @@ if (duckTouchButton) {
   duckTouchButton.addEventListener("pointercancel", releaseDuckPointer);
   duckTouchButton.addEventListener("lostpointercapture", releaseDuckPointer);
 }
-startButton.addEventListener("click", startGame);
+startButton.addEventListener("click", startFromButton);
 pauseButton.addEventListener("click", pauseGame);
-restartButton.addEventListener("click", () => {
-  resetGame();
-  startGame();
-});
-overlayButton.addEventListener("click", startGame);
+restartButton.addEventListener("click", restartFromButton);
+overlayButton.addEventListener("click", startFromButton);
 
 resizeCanvas();
 resetGame();
